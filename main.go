@@ -233,7 +233,7 @@ func findNewest() (*time.Time, error) {
 		}
 
 		i, err := e.Info()
-		if e != nil {
+		if err != nil {
 			return nil, err
 		}
 
