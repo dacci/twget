@@ -1,3 +1,7 @@
+github.com/edgeware/mp4ff v0.31.0 h1:fvmi163YpvfpVBAB7Wn7CA+Zrr0cm6FaFV2daAneb9I=
+github.com/edgeware/mp4ff v0.31.0/go.mod h1:GNUeA6tEFksH2CrjJF2FSGdJolba8yPGmo16qZTXsm8=
+github.com/go-test/deep v1.0.8 h1:TDsG77qcSprGbC6vTN8OuXp5g+J+b5Pcguhf7Zt61VM=
+github.com/go-test/deep v1.0.8/go.mod h1:5C2ZWiW0ErCdrYzpqxLbTX7MG14M9iiw8DgHncVwcsE=
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/n0madic/twitter-scraper v0.0.0-20231104223941-296710769dd8 h1:yToM7p7HL/WwEESkupFV3Nf7a8d80CHaKRoFNstGA2U=

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/edgeware/mp4ff/mp4"
 	twitterscraper "github.com/n0madic/twitter-scraper"
 	"golang.org/x/term"
 	"io"
@@ -180,13 +181,29 @@ func processUser(user string) error {
 		}
 
 		for _, photo := range tweet.Photos {
-			if err := processPhoto(photo.ID, photo.URL); err != nil {
+			m := newMedia(photo.ID, photo.URL)
+			name, err := m.processPhoto()
+			if err != nil {
 				return err
+			}
+			if name != nil {
+				err = m.fixTimestamp(*name)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		for _, video := range tweet.Videos {
-			if err := processVideo(video.ID, video.URL); err != nil {
+			m := newMedia(video.ID, video.URL)
+			name, err := m.processVideo()
+			if err != nil {
 				return err
+			}
+			if name != nil {
+				err = m.fixTimestamp(*name)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -246,62 +263,86 @@ func findNewest() (*time.Time, error) {
 	return newest, nil
 }
 
-func processPhoto(id, urlStr string) error {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return err
-	}
+type Media struct {
+	id  string
+	url *url.URL
+	ts  time.Time
+}
 
-	q := u.Query()
+func newMedia(id, rawURL string) *Media {
+	u, _ := url.Parse(rawURL)
+	n, _ := strconv.ParseInt(id, 10, 64)
+
+	return &Media{
+		id:  id,
+		url: u,
+		ts:  time.UnixMilli(n>>22 + 1288834974657),
+	}
+}
+
+func (m *Media) processPhoto() (*string, error) {
+	q := m.url.Query()
 	q.Set("name", "orig")
-	u.RawQuery = q.Encode()
+	m.url.RawQuery = q.Encode()
 
-	return download(id, u)
+	return m.download()
 }
 
-func processVideo(id, urlStr string) error {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return err
+var mvhdEpoch = time.Date(1904, 1, 1, 0, 0, 0, 0, time.UTC)
+
+func (m *Media) processVideo() (*string, error) {
+	name, err := m.download()
+	if name != nil {
+		f, err := mp4.ReadMP4File(*name)
+		if err != nil {
+			return nil, err
+		}
+
+		ts := uint64(m.ts.Sub(mvhdEpoch).Seconds())
+		f.Moov.Mvhd.CreationTime = ts
+		f.Moov.Mvhd.ModificationTime = ts
+
+		err = mp4.WriteToFile(f, *name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return download(id, u)
+	return name, err
 }
 
-func download(id string, u *url.URL) error {
-	name := path.Join(*output, id+path.Ext(u.Path))
+func (m *Media) download() (*string, error) {
+	name := path.Join(*output, m.id+path.Ext(m.url.Path))
 	if _, err := os.Stat(name); err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			return err
+			return nil, err
 		}
 	} else {
 		log.Printf("`%s` already exists", name)
-		return nil
+		return nil, nil
 	}
 
 	log.Printf("downloading `%s`", name)
 
-	resp, err := client.Get(u.String())
+	resp, err := client.Get(m.url.String())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	out, err := os.Create(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer out.Close()
 
 	if _, err = io.Copy(out, resp.Body); err != nil {
-		return err
+		return nil, err
 	}
 
-	n, _ := strconv.ParseInt(id, 10, 64)
-	ts := time.UnixMilli(n>>22 + 1288834974657)
-	if err := os.Chtimes(name, ts, ts); err != nil {
-		log.Printf("failed to change timestamps: %v", err)
-	}
+	return &name, err
+}
 
-	return nil
+func (m *Media) fixTimestamp(name string) error {
+	return os.Chtimes(name, m.ts, m.ts)
 }
