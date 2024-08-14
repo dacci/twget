@@ -69,13 +69,18 @@ func main() {
 	}
 }
 
-const CookieJar = "twmd_cookies.json"
-
 func login() error {
-	if _, err := os.Stat(CookieJar); errors.Is(err, fs.ErrNotExist) {
-		return askPass()
+	confPath := path.Join(GetConfigDir(), "twget")
+	err := os.MkdirAll(confPath, 0700)
+	if err != nil {
+		return err
+	}
+
+	confPath = path.Join(confPath, "cookies.json")
+	if _, err := os.Stat(confPath); errors.Is(err, fs.ErrNotExist) {
+		return askPass(confPath)
 	} else {
-		f, err := os.Open(CookieJar)
+		f, err := os.Open(confPath)
 		if err != nil {
 			return err
 		}
@@ -89,13 +94,13 @@ func login() error {
 		scraper.SetCookies(cookies)
 	}
 	if !scraper.IsLoggedIn() {
-		return askPass()
+		return askPass(confPath)
 	}
 
 	return nil
 }
 
-func askPass() error {
+func askPass(confPath string) error {
 	fmt.Print("username: ")
 	var user string
 	if _, err := fmt.Scanln(&user); err != nil {
@@ -117,7 +122,7 @@ func askPass() error {
 		return fmt.Errorf("failed to login")
 	}
 
-	f, err := os.Create(CookieJar)
+	f, err := os.Create(confPath)
 	if err != nil {
 		return err
 	}
